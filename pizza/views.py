@@ -1,12 +1,90 @@
-from django.shortcuts import render
 from django.contrib import messages
 from django.forms import formset_factory
 from pizza.forms import MultiplePizzaForm, PizzaForm
-from pizza.models import Pizza
+from pizza.models import Pizza, Size
+from django.shortcuts import render, HttpResponse, get_object_or_404
+from .serializers import PizzaSerializer, SizeSerializer
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+
+def index(request):
+    return HttpResponse('<h1>API Page</h1>')
+
+@api_view(['GET', 'POST'])
+def pizzas_api(request):
+    if request.method == 'GET':
+        pizzas = Pizza.objects.all()
+        serializer = PizzaSerializer(pizzas, many=True)
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        serializer = PizzaSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            data = {
+                "message": f"Pizza {serializer.validated_data.get('topping1')}, {serializer.validated_data.get('topping2')} saved successfully!"}
+            return Response(data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'PUT', 'DELETE', 'PATCH'])
+def pizzas_api_get_update_delete(request, pk):
+    pizza = get_object_or_404(Pizza, pk=pk)
+    if request.method == 'GET':
+        serializer = PizzaSerializer(pizza)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    elif request.method == 'PUT':
+        serializer = PizzaSerializer(pizza, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            data = {
+                "message": f"Pizza order updated successfully"
+            }
+            return Response(data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'PATCH':
+        serializer = PizzaSerializer(pizza, data=request.data,partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            data = {
+                "message": f"Pizza updated successfully"
+            }
+            return Response(data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'DELETE':
+        pizza.delete()
+        data = {
+            "message": f"Pizza order deleted successfully"
+        }
+        return Response(data)
+
+@api_view(['GET', 'POST'])
+def size_api(request):
+    # from rest_framework.decorators import api_view
+    # from rest_framework.response import Response
+    # from rest_framework import status
+
+    if request.method == 'GET':
+        sizes = Size.objects.all()
+        serializer = SizeSerializer(sizes, many=True, context={'request': request})
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        # from pprint import pprint
+        # pprint(request)
+        serializer = SizeSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            data = {
+                "message": f"Size saved successfully!"}
+            return Response(data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # Create your views here.
 def home(request):
-    return render(request, 'pizza/home.html')
+    pizzas = Pizza.objects.all()
+    context = {
+        "pizzas":pizzas,
+    }
+    return render(request, 'pizza/home.html', context)
 
 def order(request):
     multiple_form = MultiplePizzaForm()
